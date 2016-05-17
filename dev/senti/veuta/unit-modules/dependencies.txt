@@ -1,0 +1,6 @@
+pandas
+numpy
+collections
+re
+stop_words
+sklearn
