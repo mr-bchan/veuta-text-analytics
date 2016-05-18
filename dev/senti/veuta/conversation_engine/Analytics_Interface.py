@@ -30,7 +30,6 @@ def generate_dictionary(inputs, max_features=None, ngram_range=(1, 1), min_df=1,
                                                                 max_features=max_features, vocab=vocab, min_df=min_df, max_df=max_df, binary=binary)
     initial_terms = output_dictionary['terms']
     initial_features = output_dictionary['features']
-
     return {"terms" : initial_terms, "features": initial_features, "name" : name}
 
 #####################################################
@@ -61,47 +60,11 @@ def generate_dictionary(inputs, max_features=None, ngram_range=(1, 1), min_df=1,
 #           - message_support: number of messages belonging in the clustered response template
 # [2] generate conversation models from response inputs ** PER conversation model type**
 def initialize_models(messages, message_dictionary, responses, model_type, watchword_message_confidence=0.10, watchword_response_confidence=0.20,
-                      ngram_range=(1,1), max_response_terms=1000, model_size=20, confidence=0.5, csv_filename=None, support_threshold=0.01):
-
-    message_terms = message_dictionary['terms']
-    message_features = message_dictionary['features']
-
-## initialize response dictionary
-
-    print "\nBuilding Responses Dictionary."
-    response_dictionary = conversation_engine.build_tfidf_dictionary(inputs=responses, max_features=max_response_terms, ngram_range=ngram_range,
-                                                                     min_df=1, max_df=1.0, vocab=None)
-    response_features = response_dictionary['features']
-    response_terms = response_dictionary['terms']
-
-## cluster responses to model_clusters
-    model_clusters = conversation_engine.build_cluster_labels(response_features, model_size)
-    data_frame_model = conversation_engine.build_modeldataframe(models=model_clusters, messages=messages, responses=responses)
-
-    #optional - save csv to observe correctness of model assignment to the response
-    if(csv_filename is not None):
-        conversation_engine.save_csv_modeldataframe(data_frame_model, filename=csv_filename)
-
-## generate response patterns from resposne TF dictionary
-    response_patterns_dictionary = conversation_engine.build_tf_dictionary(inputs=responses, vocab=response_terms, binary=True, max_features=max_response_terms,
-                                                                           min_df=1, max_df=1.0, ngram_range=ngram_range)
-
-    response_patterns = conversation_engine.build_patterns(modeldataframe=data_frame_model, model_size=model_size, terms=response_terms,
-                                                           features=response_patterns_dictionary['features'], column="responses",
-                                                           threshold=watchword_response_confidence)
-
-## generate message patterns from resposne TF dictionary
-    message_patterns = conversation_engine.build_patterns(modeldataframe=data_frame_model, model_size=model_size,
-                                                          terms=message_terms, features=message_features, column="messages",
-                                                          threshold=watchword_message_confidence)
-
-## build model outputs
-    models = conversation_engine.build_conversation_models(model_size = model_size, model_type=model_type, message_patterns=message_patterns, response_patterns=response_patterns,
-                                                           confidence=confidence, support_threshold=support_threshold)
-
-    print "\nConversation models successfully generated. " + str(len(models)) + " generated models. \n"
-
-    return models
+                      ngram_range=(1,1), max_response_terms=1000, model_size=20, confidence=0.5, support_threshold=0.01):
+    return conversation_engine.initialize_models(messages=messages, message_dictionary=message_dictionary, responses=responses, model_type=model_type,
+                                                 watchword_message_confidence=watchword_message_confidence, watchword_response_confidence=watchword_response_confidence,
+                                                 ngram_range=ngram_range, max_response_terms=max_response_terms, model_size=model_size,
+                                                 confidence=confidence, support_threshold=support_threshold)
 
 #####################################################
 # @input variables:

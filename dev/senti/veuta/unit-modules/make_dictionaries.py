@@ -14,6 +14,10 @@ file_label = ['mcdo', 'kfc', 'burger_king']
 
 message_dictionary = analytics.generate_dictionary(inputs=messages, max_features=500, name=file_label[2])
 
+import dev.senti.veuta.conversation_engine.Conversation_Engine as engine
+
+engine.build_tfidf_dictionary(inputs=messages, max_df=1.0, min_df=1, max_features=50, ngram_range=(1,1), vocab=None)
+
 # file = 'dict-'+file_label[2] + "-" + str(len(message_dictionary['terms']))
 
 mongoDB.insert_dictionary(client=db, message_dictionary=message_dictionary)

@@ -57,6 +57,12 @@ def get_support_count(item):
 
 ###########################################################################################################
 
+
+def compute_term_freq_matrix(text_per_model_features,text_per_model ):
+    return (np.transpose(np.dot(np.transpose(text_per_model_features), np.ones(shape=(len(text_per_model), 1)))) / len(
+        text_per_model))[0]
+
+
 def build_cluster_labels(features, k=5):
     num_clusters = k
     km = KMeans(n_clusters=num_clusters)
@@ -115,8 +121,7 @@ def build_patterns(modeldataframe, features, terms, model_size, column, threshol
         text_per_model_features = features[np.where(modeldataframe['models'] == model_num)]
 
         # compute for frequency matrix
-        freq_matrix = (np.transpose(np.dot(np.transpose(text_per_model_features), np.ones(shape=(len(text_per_model),1)))) / len(text_per_model))[0]
-
+        freq_matrix = compute_term_freq_matrix(text_per_model = text_per_model, text_per_model_features = text_per_model_features)
         sorted_freq_idx= np.argsort(freq_matrix)[::-1]
         filtered_freq_idx =  (np.where(freq_matrix > threshold)[0])##output is column names
         freq_idx = sorted_freq_idx[np.in1d(sorted_freq_idx,filtered_freq_idx)]
@@ -171,3 +176,52 @@ def build_conversation_models(model_size,model_type,message_patterns,response_pa
 
 def build_tokens(message):
     return cleaner.cleanMePlease(message)
+
+def initialize_models(messages, message_dictionary, responses, model_type, watchword_message_confidence,
+                          watchword_response_confidence,
+                          ngram_range, max_response_terms, model_size, confidence,
+                          support_threshold):
+
+
+    message_terms = message_dictionary['terms']
+    message_features = message_dictionary['features']
+
+    ## initialize response dictionary
+
+    print "\nBuilding Responses Dictionary."
+    response_dictionary = build_tfidf_dictionary(inputs=responses, max_features=max_response_terms,
+                                                                     ngram_range=ngram_range,
+                                                                     min_df=1, max_df=1.0, vocab=None)
+    response_features = response_dictionary['features']
+    response_terms = response_dictionary['terms']
+
+    ## cluster responses to model_clusters
+    model_clusters = build_cluster_labels(response_features, model_size)
+    data_frame_model = build_modeldataframe(models=model_clusters, messages=messages,
+                                                                responses=responses)
+
+    ## generate response patterns from resposne TF dictionary
+    response_patterns_dictionary = build_tf_dictionary(inputs=responses, vocab=response_terms,
+                                                                           binary=True, max_features=max_response_terms,
+                                                                           min_df=1, max_df=1.0, ngram_range=ngram_range)
+
+    response_patterns = build_patterns(modeldataframe=data_frame_model, model_size=model_size,
+                                                           terms=response_terms,
+                                                           features=response_patterns_dictionary['features'],
+                                                           column="responses",
+                                                           threshold=watchword_response_confidence)
+
+    ## generate message patterns from resposne TF dictionary
+    message_patterns = build_patterns(modeldataframe=data_frame_model, model_size=model_size,
+                                                          terms=message_terms, features=message_features, column="messages",
+                                                          threshold=watchword_message_confidence)
+
+    ## build model outputs
+    models = build_conversation_models(model_size=model_size, model_type=model_type,
+                                                           message_patterns=message_patterns,
+                                                           response_patterns=response_patterns,
+                                                           confidence=confidence, support_threshold=support_threshold)
+
+    print "\nConversation models successfully generated. " + str(len(models)) + " generated models. \n"
+
+    return models
